@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "excel-pdf-converter-475106",
+  "private_key_id": "4fbea27d439c8caec3cea4334b03c6bfa7edf5b9",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDIiwysOR2CCUp4\nGF92Z+B0Tk1io26mRnEUYRezV2ybOXfP7jvNRTEd4VJVHCRKwmx9nLzyjrkzdStr\nSOXC28SYt0iSSUPP46gIHOT43aj7Xssbculgg3dUaeKfSOSMzfK3zSVaGLg404Nm\ni04uS6KWIY+TGo7aIJDiyoIhkfe1Jz1Y+AvsoVjCPI3BqWt3cORtlnLVmuWx+i+c\nWxfWJju8FZE4FV5NIbByoViuT046GKJoNNeK8kzDKJC8fGGP+wiAHfyJHILN65cx\nn1o37j/Gcoze3w4XpT38v9kt3s+NfACj5ITPb5hG41WZzMubsjYO3WGC3KrI7D/8\nAR9w878PAgMBAAECggEAN6dbG3p4RWulpoGBEJ+QS0altC+N2AgpfpHZXXRwF/3R\nUbuYDgXbNSMgUa1PJw4gxJVYXGoeXHjyVUI0PSj3PLh0o+BAOPPBYIsAQk5lhGkQ\nravst1OUrLD76t90Sd0ntDly2beNfHu6dh1H05I66zYiHZ1bso4iF0ZC6eUT3Moq\nEEYFf40Va99oHh6updC9iFBp8kOlPq0BHSIq7D2hGCfZzuQyeLh7xbFzuswkqEUy\nTTgneHDCdy3pBpnvhpsDz9ziEx5ruzNvU0H3FqER0UT8jKzd1MXpPI9x7ByLSWKv\nhvmF7QQ3EqVkx0bA7n+sBRwt1Wi42UvVFOgyh3wr2QKBgQD7EBpA7l8K49NM6Cm8\nIePz6tu1bIff0G9SxnQsgpHsgruxhEXhXUjGkPlhpfbybzv8rU45FRdIq0A2Mdfo\n0tZcHxz1PqubTgN53RtIrS7Af8geqU9d545IQVpyI+K8uiKOzpuldw5Qd5N+y5Wo\nLQMkIQaIhREVgErM6Pan1ATI+QKBgQDMfJ8E22KzFkli5B1VvGjaDy8ALPEp+vzU\nJiLS/4MXHVsAGdvI9du1LEK7/S2OJ/lcUBwhumS4CzTGNnTzW5zjHuNfP8r7tBUm\nKrp3QguazZqwgpO97kMAl3yXoI8S0c0s7HzR4aETsJejyT8J906m4x4tML242j1+\nS9pmY5KSRwKBgQDqHXzt2ZrFM+fhSolIhy3jUbmpt1gI7Hwy6x6ANw3OR6axBZCI\ndA2eJKh4V2QtdG6y1AUik7lPqWnKX7ZfxOPhqZ2+T7+Epj31kKqVnfD/zuiVNvrs\nrTXvyQmHcFFJ/iSlmKJprNirTqY60atv1PGd6jIGcleY/jZCWGdR3xLLOQKBgHVw\nsUdx1Dq0dwtTpcFixvlNtRmttgf9PQ1+pYt28cvpsSTatQ6ynS9tLxqWan51WNJ6\ns91vFn9Y+ENKbVqC6BTM3ZsLoUF0CJ119sedZ9rNcKUlKULwvwxs9EKFFQai9epy\nG7HSmtcbGcwYPZs0rLhOQjuD/cJXnO+XEuSxFTHrAoGAbvEusmaeLLyL37fAcxtk\nGaKMBlsEyVk62naD3njGBfT84zhAegZU4ZSB8mPVd/enHvJUupTF44emexTljrhP\nEk4HbP0xBwz08NwYGgKCql1voybNaShY0uCS+XvtVQIkTsqOAqGkbV3TC/BF0Vta\ny/kV2G/YUDTCoPkghlQx6tc=\n-----END PRIVATE KEY-----\n",
+  "client_email": "excel-converter@excel-pdf-converter-475106.iam.gserviceaccount.com",
+  "client_id": "115083567003932063281",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/excel-converter%40excel-pdf-converter-475106.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
