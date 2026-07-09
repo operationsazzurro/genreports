@@ -10,16 +10,15 @@ import tempfile
 from io import BytesIO
 import os
 from concurrent.futures import ThreadPoolExecutor
-from pdf_converter import convert_excel_to_pdf
 
-# from groupdocs_conversion_cloud import (
-#     Configuration,
-#     ConvertApi,
-#     ConvertDocumentDirectRequest,
-# )
+from groupdocs_conversion_cloud import (
+    Configuration,
+    ConvertApi,
+    ConvertDocumentDirectRequest,
+)
 
-# GROUPDOCS_CLIENT_ID = "c83e270b-cc7a-425d-a255-332e39c2df83"
-# GROUPDOCS_CLIENT_SECRET = "5d68a4ed789b847a256e4c5fb58625c6"
+GROUPDOCS_CLIENT_ID = os.environ.get("GROUPDOCS_CLIENT_ID")
+GROUPDOCS_CLIENT_SECRET = os.environ.get("GROUPDOCS_CLIENT_SECRET")
 
 
 def _download_and_validate(url, timeout=8):
@@ -342,5 +341,36 @@ def clean_report_fn(data, report_format, is_cancelled=None):
 
     if report_format == "excel":
         return tmp_xlsx_path
-    elif report_format == "pdf":
-        return convert_excel_to_pdf(tmp_xlsx_path)
+
+    # ===== PDF path via GroupDocs =====
+    if not GROUPDOCS_CLIENT_ID or not GROUPDOCS_CLIENT_SECRET:
+        raise RuntimeError(
+            "GROUPDOCS_CLIENT_ID / GROUPDOCS_CLIENT_SECRET environment "
+            "variables are not set — PDF conversion cannot proceed."
+        )
+
+    config = Configuration(GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET)
+    convert_api = ConvertApi(config)
+
+    request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
+    pdf_response = convert_api.convert_document_direct(request_conv)
+
+    if isinstance(pdf_response, str) and os.path.exists(pdf_response):
+        pdf_path = pdf_response
+    elif isinstance(pdf_response, bytes):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_response)
+            pdf_path = tmp_pdf.name
+    elif isinstance(pdf_response, str):
+        try:
+            pdf_bytes = base64.b64decode(pdf_response)
+        except Exception:
+            raise TypeError("Response string is not valid Base64 and not a path.")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_bytes)
+            pdf_path = tmp_pdf.name
+    else:
+        raise TypeError(f"Unexpected response type: {type(pdf_response)}")
+
+    print("PDF conversion successful:", pdf_path)
+    return pdf_path
