@@ -2,6 +2,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.drawing.image import Image as XLImage
+import base64
 import datetime
 import requests
 from PIL import Image as PILImage
@@ -9,6 +10,15 @@ import tempfile
 from io import BytesIO
 import os
 from concurrent.futures import ThreadPoolExecutor
+
+from groupdocs_conversion_cloud import (
+    Configuration,
+    ConvertApi,
+    ConvertDocumentDirectRequest,
+)
+
+GROUPDOCS_CLIENT_ID = "c83e270b-cc7a-425d-a255-332e39c2df83"
+GROUPDOCS_CLIENT_SECRET = "5d68a4ed789b847a256e4c5fb58625c6"
 
 
 def _download_and_validate(url, timeout=8):
@@ -40,7 +50,10 @@ def _download_and_validate(url, timeout=8):
 
 
 def _fetch_image_bytes(url, width=305, height=305, retries=2):
-    """Download + resize a single image, with validation and retry."""
+    """Download + resize a single image, with validation and retry.
+    Returns processed BytesIO or None. Safe to run concurrently across
+    threads — no shared state, no openpyxl objects (those aren't
+    thread-safe to build off-thread)."""
     if not url:
         return None
 
@@ -70,7 +83,7 @@ def _fetch_image_bytes(url, width=305, height=305, retries=2):
     return None
 
 
-def pest_report_fn(data, is_cancelled=None):
+def clean_report_fn(data, report_format, is_cancelled=None):
     wb = Workbook()
 
     # ========== COVER PAGE ==========
@@ -106,7 +119,7 @@ def pest_report_fn(data, is_cancelled=None):
 
     cover.merge_cells("A21:K21")
     title = cover["A21"]
-    title.value = "PEST CONTROL ACTIVITY REPORT"
+    title.value = "WEEKLY ACTIVITY  REPORT"
     title.font = Font(size=20, bold=True)
     title.alignment = Alignment(horizontal="center", vertical="center")
 
@@ -142,7 +155,7 @@ def pest_report_fn(data, is_cancelled=None):
 
     ws.merge_cells("A1:E1")
     title_cell = ws["A1"]
-    title_cell.value = "Weekly Pest Control Activity Report"
+    title_cell.value = "Weekly Activity Report"
     title_cell.font = Font(bold=True, size=14)
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
     title_cell.fill = PatternFill(
@@ -153,8 +166,10 @@ def pest_report_fn(data, is_cancelled=None):
     headers = ["Finance Code", "Mosque Name", "Activity", "Before Photo", "After Photo"]
     ws.append(headers)
 
-    #
-    rows_per_page = 7  # page 1 total: 2 header rows + 5 data rows
+    # NOTE: each data row here = 1 physical excel row (before + after photo
+    # side by side), unlike pest_report.py which uses 2 physical rows per
+    # item. So "6 data rows per page" here means 6 mosques per page.
+    rows_per_page = 7  # page 1 total: 2 header rows + 6 data rows
     header_rows = 2
     max_col = 5
     header_height = 25
@@ -163,7 +178,11 @@ def pest_report_fn(data, is_cancelled=None):
 
     def _apply_block_border(ws, start_row, end_row, start_col, end_col):
         """Draws a table-style border over a rectangular block of cells:
-        thick on the outer perimeter, thin on every inner cell edge."""
+        thick on the outer perimeter, thin on every inner cell edge (a
+        normal grid). Applying this to the full formula-computed block
+        (not just as far as real data reaches) is what makes the LAST
+        page's border cover the entire page even when it isn't fully
+        populated with data."""
         thick = Side(style="thick", color="000000")
         thin = Side(style="thin", color="000000")
 
@@ -177,16 +196,18 @@ def pest_report_fn(data, is_cancelled=None):
                     left=left, right=right, top=top, bottom=bottom
                 )
 
-    total_data_rows = len(data) * 2  # 2 excel rows per data row (4 images each)
+    total_data_rows = len(data)  # 1 excel row per data row here
     pages = (total_data_rows // data_rows_per_page) + (
         1 if total_data_rows % data_rows_per_page else 0
     )
-    pages = max(pages, 1)
+    pages = max(
+        pages, 1
+    )  # always draw at least one full page block, even with zero rows of data
 
     for page in range(pages):
         if page == 0:
             page_start_row = 1
-            page_end_row = rows_per_page
+            page_end_row = rows_per_page  # rows 1-8: header(1-2) + data(3-8)
         else:
             page_start_row = rows_per_page + (page - 1) * data_rows_per_page + 1
             page_end_row = page_start_row + data_rows_per_page - 1
@@ -198,16 +219,18 @@ def pest_report_fn(data, is_cancelled=None):
             else:
                 ws.row_dimensions[r].height = data_row_height
 
+        # Full block border — always spans the complete computed page
+        # range (page_start_row..page_end_row), regardless of how many
+        # rows actually ended up with real data written into them.
         _apply_block_border(ws, page_start_row, page_end_row, 1, max_col)
 
     ws.print_title_rows = f"$1:${header_rows}"
 
-    # FIX: this loop used to unconditionally overwrite row 2's border with
-    # thin on all sides, which wiped out the thick left/right outer edge
-    # that _apply_block_border() had already drawn for row 2 (it's inside
-    # the page-1 block, at the block's start_col/end_col). Now it only
-    # thins the inner edges and preserves the outer thick left/right border
-    # on the first/last column.
+    # This preserves the outer thick left/right border on row 2 instead of
+    # unconditionally overwriting it with thin — the header-styling loop
+    # used to wipe out the thick edge that _apply_block_border() had
+    # already drawn there, since row 2 is inside the page-1 block at its
+    # start_col/end_col.
     thin_side = Side(style="thin", color="000000")
     thick_side = Side(style="thick", color="000000")
 
@@ -230,15 +253,16 @@ def pest_report_fn(data, is_cancelled=None):
     for i, width in enumerate(column_widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
 
-    # ===== 1. Gather every URL needed, per row, safely padded to 4 =====
+    # ===== 1. Gather every URL that needs downloading, per row =====
+    # Each row needs a before-photo and an after-photo (2 URLs, not 4 like pest report)
     row_urls = []
     for row in data:
-        urls = (row.get("before_file_url") or "").split(",")
-        urls = [u.strip() for u in urls]
-        urls += [""] * (4 - len(urls))
-        row_urls.append(urls[:4])
+        before_url = (row.get("before_file_url") or "").strip()
+        after_url = (row.get("after_file_url") or "").strip()
+        row_urls.append((before_url, after_url))
 
-    BATCH_SIZE = 50
+    # ===== 2 & 3. Download + build in batches =====
+    BATCH_SIZE = 50  # rows per batch (each row = 2 images)
     MAX_WORKERS = 12
 
     row_index = 3
@@ -252,8 +276,8 @@ def pest_report_fn(data, is_cancelled=None):
             )
             return None
         batch_rows = data[batch_start : batch_start + BATCH_SIZE]
-        batch_urls_groups = row_urls[batch_start : batch_start + BATCH_SIZE]
-        flat_urls = [u for urls in batch_urls_groups for u in urls]
+        batch_urls_pairs = row_urls[batch_start : batch_start + BATCH_SIZE]
+        flat_urls = [u for pair in batch_urls_pairs for u in pair]
 
         batch_num = (batch_start // BATCH_SIZE) + 1
         print(
@@ -272,62 +296,41 @@ def pest_report_fn(data, is_cancelled=None):
             f"({failed_count}/{len(flat_urls)} failed)"
         )
 
-        images_per_row = [flat_images[i : i + 4] for i in range(0, len(flat_images), 4)]
+        images_per_row = [
+            (flat_images[i], flat_images[i + 1]) for i in range(0, len(flat_images), 2)
+        ]
 
-        for row, imgs in zip(batch_rows, images_per_row):
-            img1_bytes, img2_bytes, img3_bytes, img4_bytes = imgs
-
+        for row, (before_bytes, after_bytes) in zip(batch_rows, images_per_row):
             ws.cell(row=row_index, column=1, value=row.get("fc", ""))
             ws.cell(row=row_index, column=2, value=row.get("name", ""))
             ws.cell(row=row_index, column=3, value=row.get("activity", ""))
-
-            if img1_bytes:
-                img = XLImage(img1_bytes)
-                img.width, img.height = 305, 305
-                ws.add_image(img, f"D{row_index}")
-            else:
-                ws.cell(row=row_index, column=4, value="Image load failed")
-
-            if img2_bytes:
-                img = XLImage(img2_bytes)
-                img.width, img.height = 305, 305
-                ws.add_image(img, f"E{row_index}")
-            else:
-                ws.cell(row=row_index, column=5, value="Image load failed")
-
-            ws.cell(row=row_index + 1, column=1, value=row.get("fc", ""))
-            ws.cell(row=row_index + 1, column=2, value=row.get("name", ""))
-            ws.cell(row=row_index + 1, column=3, value=row.get("activity", ""))
-
-            if img3_bytes:
-                img = XLImage(img3_bytes)
-                img.width, img.height = 305, 305
-                ws.add_image(img, f"D{row_index + 1}")
-            else:
-                ws.cell(row=row_index + 1, column=4, value="Image load failed")
-
-            if img4_bytes:
-                img = XLImage(img4_bytes)
-                img.width, img.height = 305, 305
-                ws.add_image(img, f"E{row_index + 1}")
-            else:
-                ws.cell(row=row_index + 1, column=5, value="Image load failed")
 
             for i in range(1, 4):
                 ws.cell(row=row_index, column=i).alignment = Alignment(
                     wrap_text=True, vertical="center", horizontal="center"
                 )
-                ws.cell(row=row_index + 1, column=i).alignment = Alignment(
-                    wrap_text=True, vertical="center", horizontal="center"
-                )
+
+            if before_bytes:
+                img = XLImage(before_bytes)
+                img.width, img.height = 305, 305
+                ws.add_image(img, f"D{row_index}")
+            else:
+                ws.cell(row=row_index, column=4, value="Image load failed")
+
+            if after_bytes:
+                img = XLImage(after_bytes)
+                img.width, img.height = 305, 305
+                ws.add_image(img, f"E{row_index}")
+            else:
+                ws.cell(row=row_index, column=5, value="Image load failed")
 
             ws.row_dimensions[row_index].height = 224
-            ws.row_dimensions[row_index + 1].height = 224
-            row_index += 2
+            row_index += 1
 
     overall_elapsed = (datetime.datetime.now() - overall_start).total_seconds()
     print(f"All batches complete in {overall_elapsed:.1f}s")
 
+    # ===== 4. Save workbook to a temp file and return the PATH ONLY =====
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_xlsx:
         wb.save(tmp_xlsx.name)
         tmp_xlsx_path = tmp_xlsx.name
@@ -336,4 +339,32 @@ def pest_report_fn(data, is_cancelled=None):
     print("File path:", tmp_xlsx_path)
     print("File Size:", os.path.getsize(tmp_xlsx_path))
 
-    return tmp_xlsx_path
+    if report_format == "excel":
+        return tmp_xlsx_path
+
+    # ===== PDF path via GroupDocs =====
+    config = Configuration(GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET)
+    convert_api = ConvertApi(config)
+
+    request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
+    pdf_response = convert_api.convert_document_direct(request_conv)
+
+    if isinstance(pdf_response, str) and os.path.exists(pdf_response):
+        pdf_path = pdf_response
+    elif isinstance(pdf_response, bytes):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_response)
+            pdf_path = tmp_pdf.name
+    elif isinstance(pdf_response, str):
+        try:
+            pdf_bytes = base64.b64decode(pdf_response)
+        except Exception:
+            raise TypeError("Response string is not valid Base64 and not a path.")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_bytes)
+            pdf_path = tmp_pdf.name
+    else:
+        raise TypeError(f"Unexpected response type: {type(pdf_response)}")
+
+    print("PDF conversion successful:", pdf_path)
+    return pdf_path
