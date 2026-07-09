@@ -136,7 +136,7 @@ def home():
 
 @app.route("/generate_excel", methods=["POST"])
 def generate_excel_cleaning():
-    print(">>> /generate_excel route hit")  # add this first
+    print(">>> /generate_excel route hit", flush=True)  # add this first
     raw = request.get_data(as_text=True)
 
     try:
