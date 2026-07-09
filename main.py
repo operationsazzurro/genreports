@@ -50,7 +50,7 @@ def _set_job(job_id, **fields):
         jobs[job_id].update(fields)
 
 
-def _run_pestreport_job(job_id, data):
+def _run_pestreport_job(job_id, data, file_format):
     try:
         _set_job(job_id, status="processing", started_at=time.time())
 
@@ -66,7 +66,7 @@ def _run_pestreport_job(job_id, data):
                     return True
             return False
 
-        path = pest_report_fn(data, is_cancelled=is_cancelled)
+        path = pest_report_fn(data, file_format, is_cancelled=is_cancelled)
 
         if path is None:
             # report function bailed out early due to cancellation
@@ -185,11 +185,15 @@ def generate_excel_pest():
 
     try:
         payload = json.loads(raw)
+        report_format = payload.get("format", "excel").lower()
     except json.JSONDecodeError as e:
         return jsonify({"error": f"Invalid JSON: {e}"}), 400
 
     if not payload or not payload.get("data"):
         return jsonify({"error": "Empty or missing data in payload"}), 400
+
+    if report_format not in ("excel", "pdf"):
+        return jsonify({"error": f"Unsupported format: {report_format}"}), 400
 
     data_dict = payload.get("data", [])
     if isinstance(data_dict, dict):
@@ -201,10 +205,15 @@ def generate_excel_pest():
 
     job_id = str(uuid.uuid4())
     with jobs_lock:
-        jobs[job_id] = {"status": "queued", "created_at": time.time()}
+        jobs[job_id] = {
+            "status": "queued",
+            "created_at": time.time(),
+            "report_name": "Pest_Control_Report",
+            "report_format": report_format,
+        }
 
     thread = threading.Thread(
-        target=_run_pestreport_job, args=(job_id, data), daemon=True
+        target=_run_pestreport_job, args=(job_id, data, report_format), daemon=True
     )
     thread.start()
 
@@ -274,26 +283,6 @@ def cancel_job(job_id):
         job["cancel_requested"] = True
 
     return jsonify({"status": "cancel_requested"}), 200
-
-
-@app.route("/groupdocs_test")
-def groupdocs_test():
-    import groupdocs_conversion_cloud
-
-    try:
-        api = groupdocs_conversion_cloud.ConvertApi.from_keys(
-            os.environ["GROUPDOCS_CLIENT_ID"], os.environ["GROUPDOCS_CLIENT_SECRET"]
-        )
-        return {"status": "Authentication succeeded"}
-    except Exception as e:
-        return {"error": str(e)}, 500
-
-
-@app.route("/groupdocs_version")
-def groupdocs_version():
-    import groupdocs_conversion_cloud
-
-    return {"version": getattr(groupdocs_conversion_cloud, "__version__", "unknown")}
 
 
 # if __name__ == "__main__":

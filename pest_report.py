@@ -5,10 +5,29 @@ from openpyxl.drawing.image import Image as XLImage
 import datetime
 import requests
 from PIL import Image as PILImage
+import base64
 import tempfile
 from io import BytesIO
 import os
 from concurrent.futures import ThreadPoolExecutor
+import groupdocs_conversion_cloud
+
+from groupdocs_conversion_cloud import ConvertApi
+from groupdocs_conversion_cloud import ConvertDocumentDirectRequest
+
+
+GROUPDOCS_CLIENT_ID = os.environ.get("GROUPDOCS_CLIENT_ID")
+GROUPDOCS_CLIENT_SECRET = os.environ.get("GROUPDOCS_CLIENT_SECRET")
+
+convert_api = groupdocs_conversion_cloud.ConvertApi.from_keys(
+    GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET
+)
+
+print("CLIENT ID:", GROUPDOCS_CLIENT_ID)
+print(
+    "CLIENT SECRET LENGTH:",
+    len(GROUPDOCS_CLIENT_SECRET) if GROUPDOCS_CLIENT_SECRET else "None",
+)
 
 
 def _download_and_validate(url, timeout=8):
@@ -70,7 +89,7 @@ def _fetch_image_bytes(url, width=305, height=305, retries=2):
     return None
 
 
-def pest_report_fn(data, is_cancelled=None):
+def pest_report_fn(data, report_format, is_cancelled=None):
     wb = Workbook()
 
     # ========== COVER PAGE ==========
@@ -336,4 +355,43 @@ def pest_report_fn(data, is_cancelled=None):
     print("File path:", tmp_xlsx_path)
     print("File Size:", os.path.getsize(tmp_xlsx_path))
 
-    return tmp_xlsx_path
+    if report_format == "excel":
+        return tmp_xlsx_path
+
+    # ===== PDF path via GroupDocs =====
+    if not GROUPDOCS_CLIENT_ID or not GROUPDOCS_CLIENT_SECRET:
+        raise RuntimeError(
+            "GROUPDOCS_CLIENT_ID / GROUPDOCS_CLIENT_SECRET environment "
+            "variables are not set — PDF conversion cannot proceed."
+        )
+
+    try:
+        request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
+
+        pdf_response = convert_api.convert_document_direct(request_conv)
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        raise
+
+    if isinstance(pdf_response, str) and os.path.exists(pdf_response):
+        pdf_path = pdf_response
+    elif isinstance(pdf_response, bytes):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_response)
+            pdf_path = tmp_pdf.name
+    elif isinstance(pdf_response, str):
+        try:
+            pdf_bytes = base64.b64decode(pdf_response)
+        except Exception:
+            raise TypeError("Response string is not valid Base64 and not a path.")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_bytes)
+            pdf_path = tmp_pdf.name
+    else:
+        raise TypeError(f"Unexpected response type: {type(pdf_response)}")
+
+    print("PDF conversion successful:", pdf_path)
+    return pdf_path
