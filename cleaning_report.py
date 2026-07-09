@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 import groupdocs_conversion_cloud
 
 from groupdocs_conversion_cloud import (
-    Configuration,
     ConvertApi,
     ConvertDocumentDirectRequest,
 )
@@ -358,11 +357,17 @@ def clean_report_fn(data, report_format, is_cancelled=None):
     convert_api = groupdocs_conversion_cloud.ConvertApi.from_keys(
         GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET
     )
-    config = Configuration(GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET)
-    convert_api = ConvertApi(config)
 
-    request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
-    pdf_response = convert_api.convert_document_direct(request_conv)
+    try:
+        request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
+
+        pdf_response = convert_api.convert_document_direct(request_conv)
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        raise
 
     if isinstance(pdf_response, str) and os.path.exists(pdf_response):
         pdf_path = pdf_response
