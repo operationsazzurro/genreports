@@ -359,10 +359,9 @@ def clean_report_fn(data, report_format, is_cancelled=None):
         )
 
     try:
-        with open(tmp_xlsx_path, "rb") as f:
-            request_conv = ConvertDocumentDirectRequest("pdf", f.read())
+        request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
 
-            pdf_response = convert_api.convert_document_direct(request_conv)
+        pdf_response = convert_api.convert_document_direct(request_conv)
 
     except Exception:
         import traceback
