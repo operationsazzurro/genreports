@@ -275,6 +275,18 @@ def cancel_job(job_id):
 
     return jsonify({"status": "cancel_requested"}), 200
 
+@app.route("/groupdocs_test")
+def groupdocs_test():
+    import groupdocs_conversion_cloud
+
+    try:
+        api = groupdocs_conversion_cloud.ConvertApi.from_keys(
+            os.environ["GROUPDOCS_CLIENT_ID"],
+            os.environ["GROUPDOCS_CLIENT_SECRET"]
+        )
+        return {"status": "Authentication succeeded"}
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 # if __name__ == "__main__":
 #     app.run(host="0.0.0.0", port=8080)
