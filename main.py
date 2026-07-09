@@ -54,7 +54,7 @@ def _run_pestreport_job(job_id, data):
     try:
         _set_job(job_id, status="processing", started_at=time.time())
 
-        MAX_JOB_RUNTIME_SECONDS = 900  # 15 minutes — generous but bounded
+        MAX_JOB_RUNTIME_SECONDS = 1800  # 30 minutes — generous but bounded
 
         def is_cancelled():
             with jobs_lock:
@@ -84,7 +84,7 @@ def _run_cleanreport_job(job_id, data):
     try:
         _set_job(job_id, status="processing", started_at=time.time())
 
-        MAX_JOB_RUNTIME_SECONDS = 900  # 15 minutes — generous but bounded
+        MAX_JOB_RUNTIME_SECONDS = 1800  # 30 minutes — generous but bounded
 
         def is_cancelled():
             with jobs_lock:
