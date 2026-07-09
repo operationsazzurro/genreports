@@ -21,22 +21,22 @@ import uuid
 import time
 from waitress import serve
 
-from groupdocs_conversion_cloud import (
-    Configuration,
-    ConvertApi,
-    ConvertDocumentDirectRequest,
-)
+# from groupdocs_conversion_cloud import (
+#     Configuration,
+#     ConvertApi,
+#     ConvertDocumentDirectRequest,
+# )
 
 app = Flask(__name__)
 CORS(app)
 
 
 # Setup conversion API
-config = Configuration(
-    "c83e270b-cc7a-425d-a255-332e39c2df83", "5d68a4ed789b847a256e4c5fb58625c6"
-)
+# config = Configuration(
+#     "c83e270b-cc7a-425d-a255-332e39c2df83", "5d68a4ed789b847a256e4c5fb58625c6"
+# )
 
-convert_api = ConvertApi(config)
+# convert_api = ConvertApi(config)
 
 
 jobs = {}
