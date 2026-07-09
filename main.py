@@ -136,6 +136,7 @@ def home():
 
 @app.route("/generate_excel", methods=["POST"])
 def generate_excel_cleaning():
+    print(">>> /generate_excel route hit")  # add this first
     raw = request.get_data(as_text=True)
 
     try:
@@ -147,9 +148,6 @@ def generate_excel_cleaning():
 
     if not payload or not payload.get("data"):
         return jsonify({"error": "Empty or missing data in payload"}), 400
-
-    report_format = payload.get("format", "excel").lower()
-    print(f"Requested format: {report_format}")
 
     if report_format not in ("excel", "pdf"):
         return jsonify({"error": f"Unsupported format: {report_format}"}), 400
