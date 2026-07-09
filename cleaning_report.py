@@ -20,6 +20,12 @@ from groupdocs_conversion_cloud import (
 GROUPDOCS_CLIENT_ID = os.environ.get("GROUPDOCS_CLIENT_ID")
 GROUPDOCS_CLIENT_SECRET = os.environ.get("GROUPDOCS_CLIENT_SECRET")
 
+print("CLIENT ID:", GROUPDOCS_CLIENT_ID)
+print(
+    "CLIENT SECRET LENGTH:",
+    len(GROUPDOCS_CLIENT_SECRET) if GROUPDOCS_CLIENT_SECRET else "None",
+)
+
 
 def _download_and_validate(url, timeout=8):
     """Downloads a URL and confirms the bytes are a genuinely complete,
