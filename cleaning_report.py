@@ -11,14 +11,14 @@ from io import BytesIO
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from groupdocs_conversion_cloud import (
-    Configuration,
-    ConvertApi,
-    ConvertDocumentDirectRequest,
-)
+# from groupdocs_conversion_cloud import (
+#     Configuration,
+#     ConvertApi,
+#     ConvertDocumentDirectRequest,
+# )
 
-GROUPDOCS_CLIENT_ID = "c83e270b-cc7a-425d-a255-332e39c2df83"
-GROUPDOCS_CLIENT_SECRET = "5d68a4ed789b847a256e4c5fb58625c6"
+# GROUPDOCS_CLIENT_ID = "c83e270b-cc7a-425d-a255-332e39c2df83"
+# GROUPDOCS_CLIENT_SECRET = "5d68a4ed789b847a256e4c5fb58625c6"
 
 
 def _download_and_validate(url, timeout=8):
