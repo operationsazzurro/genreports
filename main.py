@@ -137,7 +137,6 @@ def home():
 @app.route("/generate_excel", methods=["POST"])
 def generate_excel_cleaning():
     raw = request.get_data(as_text=True)
-    file_format = "excel"
 
     try:
         payload = json.loads(raw)
@@ -146,6 +145,11 @@ def generate_excel_cleaning():
 
     if not payload or not payload.get("data"):
         return jsonify({"error": "Empty or missing data in payload"}), 400
+
+    report_format = payload.get("format", "excel").lower()
+    print(f"Requested format: {report_format}")
+    if report_format not in ("excel", "pdf"):
+        return jsonify({"error": f"Unsupported format: {report_format}"}), 400
 
     data_dict = payload.get("data", [])
     if isinstance(data_dict, dict):
@@ -157,10 +161,15 @@ def generate_excel_cleaning():
 
     job_id = str(uuid.uuid4())
     with jobs_lock:
-        jobs[job_id] = {"status": "queued", "created_at": time.time()}
+        jobs[job_id] = {
+            "status": "queued",
+            "created_at": time.time(),
+            "report_name": "Weekly_Cleaning_Report",
+            "report_format": report_format,
+        }
 
     thread = threading.Thread(
-        target=_run_cleanreport_job, args=(job_id, data, file_format), daemon=True
+        target=_run_cleanreport_job, args=(job_id, data, report_format), daemon=True
     )
     thread.start()
 
@@ -205,42 +214,6 @@ def generate_excel_pest():
     return jsonify({"job_id": job_id, "status": "queued"}), 202
 
 
-@app.route("/generate_pdf", methods=["POST"])
-def generate_pdf_cleaning():
-    raw = request.get_data(as_text=True)
-    file_format = "pdf"
-
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Invalid JSON: {e}"}), 400
-
-    if not payload or not payload.get("data"):
-        return jsonify({"error": "Empty or missing data in payload"}), 400
-
-    data_dict = payload.get("data", [])
-    if isinstance(data_dict, dict):
-        keys = list(data_dict.keys())
-        num_rows = len(next(iter(data_dict.values()))) if data_dict else 0
-        data = [{key: data_dict[key][i] for key in keys} for i in range(num_rows)]
-    else:
-        data = data_dict
-
-    job_id = str(uuid.uuid4())
-    with jobs_lock:
-        jobs[job_id] = {"status": "queued", "created_at": time.time()}
-
-    thread = threading.Thread(
-        target=_run_cleanreport_job, args=(job_id, data, file_format), daemon=True
-    )
-    thread.start()
-
-    _cleanup_old_jobs()
-
-    # Returns almost instantly — well under any Retool timeout
-    return jsonify({"job_id": job_id, "status": "queued"}), 202
-
-
 @app.route("/job_status/<job_id>", methods=["GET"])
 def job_status(job_id):
     with jobs_lock:
@@ -255,41 +228,37 @@ def job_status(job_id):
         response["download_url"] = f"/download/{job_id}"
     return jsonify(response), 200
 
-    @app.route("/download/<job_id>", methods=["GET"])
-    def download(job_id):
-        with jobs_lock:
-            job = jobs.get(job_id)
 
-        if not job:
-            return jsonify({"error": "Unknown job_id"}), 404
-        if job["status"] != "done":
-            return jsonify({"error": f"Job not ready, status: {job['status']}"}), 409
+@app.route("/download/<job_id>", methods=["GET"])
+def download(job_id):
+    with jobs_lock:
+        job = jobs.get(job_id)
 
-        path = job["file_path"]
-        if not os.path.exists(path):
-            return jsonify({"error": "File missing or already cleaned up"}), 410
+    if not job:
+        return jsonify({"error": "Unknown job_id"}), 404
+    if job["status"] != "done":
+        return jsonify({"error": f"Job not ready, status: {job['status']}"}), 409
 
-        # Detect actual file type instead of assuming .xlsx — clean_report_fn
-        # can return either .xlsx or .pdf depending on report_format
-        ext = os.path.splitext(path)[1].lower()
+    path = job["file_path"]
+    if not os.path.exists(path):
+        return jsonify({"error": "File missing or already cleaned up"}), 410
 
-        mimetypes_by_ext = {
-            ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ".pdf": "application/pdf",
-        }
-        mimetype = mimetypes_by_ext.get(ext, "application/octet-stream")
+    report_format = job.get("report_format", "excel")
+    base_name = job.get("report_name", "Report")
 
-        # Use a job-specific base name so pest vs cleaning reports don't both
-        # download under the same "Pest_Control_Report" filename
-        base_name = job.get("report_name", "Report")
-        download_name = f"{base_name}{ext}"
+    if report_format == "pdf":
+        ext = ".pdf"
+        mimetype = "application/pdf"
+    else:
+        ext = ".xlsx"
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-        return send_file(
-            path,
-            as_attachment=True,
-            download_name=download_name,
-            mimetype=mimetype,
-        )
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=f"{base_name}{ext}",
+        mimetype=mimetype,
+    )
 
 
 @app.route("/cancel_job/<job_id>", methods=["POST"])
