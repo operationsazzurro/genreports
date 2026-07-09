@@ -10,6 +10,7 @@ import tempfile
 from io import BytesIO
 import os
 from concurrent.futures import ThreadPoolExecutor
+import groupdocs_conversion_cloud
 
 from groupdocs_conversion_cloud import (
     Configuration,
@@ -354,7 +355,9 @@ def clean_report_fn(data, report_format, is_cancelled=None):
             "GROUPDOCS_CLIENT_ID / GROUPDOCS_CLIENT_SECRET environment "
             "variables are not set — PDF conversion cannot proceed."
         )
-
+    convert_api = groupdocs_conversion_cloud.ConvertApi.from_keys(
+        GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET
+    )
     config = Configuration(GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET)
     convert_api = ConvertApi(config)
 
