@@ -12,13 +12,16 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 import groupdocs_conversion_cloud
 
-from groupdocs_conversion_cloud import (
-    ConvertApi,
-    ConvertDocumentDirectRequest,
-)
+from groupdocs_conversion_cloud import ConvertApi
+from groupdocs_conversion_cloud import ConvertDocumentDirectRequest
+
 
 GROUPDOCS_CLIENT_ID = os.environ.get("GROUPDOCS_CLIENT_ID")
 GROUPDOCS_CLIENT_SECRET = os.environ.get("GROUPDOCS_CLIENT_SECRET")
+
+convert_api = groupdocs_conversion_cloud.ConvertApi.from_keys(
+    GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET
+)
 
 print("CLIENT ID:", GROUPDOCS_CLIENT_ID)
 print(
@@ -354,9 +357,6 @@ def clean_report_fn(data, report_format, is_cancelled=None):
             "GROUPDOCS_CLIENT_ID / GROUPDOCS_CLIENT_SECRET environment "
             "variables are not set — PDF conversion cannot proceed."
         )
-    convert_api = groupdocs_conversion_cloud.ConvertApi.from_keys(
-        GROUPDOCS_CLIENT_ID, GROUPDOCS_CLIENT_SECRET
-    )
 
     try:
         request_conv = ConvertDocumentDirectRequest("pdf", tmp_xlsx_path)
