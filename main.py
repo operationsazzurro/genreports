@@ -141,7 +141,7 @@ def generate_excel_cleaning():
     try:
         payload = json.loads(raw)
         report_format = payload.get("format", "excel").lower()
-        print(f"Requested format: {report_format}")
+        print("Requested format:", report_format)
     except json.JSONDecodeError as e:
         return jsonify({"error": f"Invalid JSON: {e}"}), 400
 
