@@ -9,6 +9,7 @@ import base64
 import tempfile
 from io import BytesIO
 import os
+import gc
 from concurrent.futures import ThreadPoolExecutor
 import groupdocs_conversion_cloud
 
@@ -343,6 +344,9 @@ def pest_report_fn(data, report_format, is_cancelled=None):
             ws.row_dimensions[row_index].height = 224
             ws.row_dimensions[row_index + 1].height = 224
             row_index += 2
+
+        del flat_images, images_per_row
+        gc.collect()
 
     overall_elapsed = (datetime.datetime.now() - overall_start).total_seconds()
     print(f"All batches complete in {overall_elapsed:.1f}s")
