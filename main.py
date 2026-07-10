@@ -41,6 +41,7 @@ CORS(app)
 
 jobs = {}
 jobs_lock = threading.Lock()
+report_generation_lock = threading.Lock()
 
 JOB_TTL_SECONDS = 3600  # auto-clean finished jobs after 1 hour
 
@@ -51,6 +52,15 @@ def _set_job(job_id, **fields):
 
 
 def _run_pestreport_job(job_id, data, file_format):
+    acquired = report_generation_lock.acquire(timeout=1)
+    if not acquired:
+        _set_job(
+            job_id,
+            status="error",
+            error="Another report is currently generating. Please try again shortly.",
+            finished_at=time.time(),
+        )
+        return
     try:
         _set_job(job_id, status="processing", started_at=time.time())
 
@@ -78,9 +88,20 @@ def _run_pestreport_job(job_id, data, file_format):
     except Exception as e:
         print(f"[job {job_id}] failed: {e}")
         _set_job(job_id, status="error", error=str(e), finished_at=time.time())
+    finally:
+        report_generation_lock.release()
 
 
 def _run_cleanreport_job(job_id, data, f_format):
+    acquired = report_generation_lock.acquire(timeout=1)
+    if not acquired:
+        _set_job(
+            job_id,
+            status="error",
+            error="Another report is currently generating. Please try again shortly.",
+            finished_at=time.time(),
+        )
+        return
     try:
         _set_job(job_id, status="processing", started_at=time.time())
 
@@ -109,6 +130,8 @@ def _run_cleanreport_job(job_id, data, f_format):
         # Never let the thread die silently — always record the error
         print(f"[job {job_id}] failed: {e}")
         _set_job(job_id, status="error", error=str(e), finished_at=time.time())
+    finally:
+        report_generation_lock.release()
 
 
 def _cleanup_old_jobs():
